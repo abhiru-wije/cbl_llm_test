@@ -3,47 +3,50 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - main  # Trigger on pushes to the main branch
-  pull_request:  # Optionally, trigger on pull requests (doesn't push the image)
+      - main
+  pull_request:
     branches:
       - main
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
-
-      # Log in to Docker Hub
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # Determine the Docker tag
-      - name: Set Docker tag
-        id: tag
-        run: |
-          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref_type }}" == "tag" ]; then
-            echo "tag=${{ github.ref_name }}" >> $GITHUB_ENV
-          elif [ "${{ github.event_name }}" == "push" ]; then
-            echo "tag=latest" >> $GITHUB_ENV
-          else
-            echo "tag=${{ github.sha }}" >> $GITHUB_ENV
-          fi
-
-      # Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # Build and Push Docker image
-      - name: Build and Push Docker image
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            -t ${{ secrets.DOCKER_USERNAME }}/my-image:${{ env.tag }} \
-            --push .
+      
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/my-image
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=long
+            type=ref,event=branch
+            type=ref,event=tag
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
