@@ -34,7 +34,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/cbl_email  # Make sure to replace 'app-name' with your actual app name
+          images: ${{ secrets.DOCKER_USERNAME }}/cbl_llm_test  # Make sure to replace 'app-name' with your actual app name
           flavor: |
             latest=auto
           tags: |
