@@ -39,7 +39,7 @@ jobs:
       # Build the Docker image
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/my-image:${{ env.tag }} .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/my-image:${{ env.tag }} ./docker
 
       # Push the Docker image to Docker Hub
       - name: Push Docker image to Docker Hub
