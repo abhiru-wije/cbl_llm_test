@@ -3,7 +3,10 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - main  # Trigger the workflow on pushes to the main branch
+      - main  # Trigger on pushes to the main branch
+  pull_request:  # Optionally, trigger on pull requests (doesn't push the image)
+    branches:
+      - main
 
 jobs:
   build-and-push:
@@ -21,12 +24,22 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Build the Docker image
-      - name: Build Docker image
+      # Determine the Docker tag
+      - name: Set Docker tag
+        id: tag
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/my-image:latest .
+          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" == "push" ]; then
+            echo "tag=latest" >> $GITHUB_ENV
+          else
+            echo "tag=${{ github.sha }}" >> $GITHUB_ENV
+          fi
 
-      # Push the Docker image to Docker Hub
-      - name: Push Docker image to Docker Hub
+      # Build the Docker image with Buildx
+      - name: Build and Push Docker image
         run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/my-image:latest
+          docker buildx create --use
+          docker buildx build --platform linux/amd64 \
+            -t ${{ secrets.DOCKER_USERNAME }}/my-image:${{ env.tag }} \
+            --push .
